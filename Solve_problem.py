@@ -4,64 +4,92 @@ import warnings
 import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
-def newton(f, f_prime_x, f_prime_y, x0, y0, tol = 1.e-6):
-    """ Uses Newton's method to find a root (x, y) of a function of two variables f
+def newton(constraint1, grad1, constraint2, grad2, x, dx, tol = 1.e-6):
+    """ Uses Newton's method to find a root x (in R^4) of two constraint functions f1, f2: R^4 -> R
+
     Parameters:
     -----------
-    - f: function f(x, y)
-    - f_prime_x: function f_x(x, y)
-    - f_prime_y: function f_y(x, y)
-    - x0: initial x guess 
-    - y0: initial y guess
-    - tolerance: Returns when |f(x, y)| < tol
+    - constraint1, constraint2: the constraints
+    - grad1, grad2: the gradients of the constraints
+    - x: (numpy array) initial value in R^4
+    - dx: (numpy array) gradient descent step taken in R^4
+    - tol: Returns when |constraint(x + dx + dw)| < tol
         
     Returns:
     --------
-    - (x, y): final iterate
+    - alphas: array of coefficients that solve constraint(x + dx + alpha1 * grad1 + alpha2 * grad2) = 0
         
     Raises:
     -------
-    Warning: if number of iterations exceed MAX_STEPS
+    Warning: 
+        if number of iterations exceed MAX_STEPS
     """
-    MAX_STEPS = 200
+    MAX_STEPS = 150
     
-    x = x0
-    y = y0
-    x_array = [ (x0, y0) ]
+    # Initialize alpha1 = 0, alpha2 = 0
+    alphas = np.array([0.0, 0.0])
+    def F(alpha1, alpha2, constraint1, grad1, constraint2, grad2, x, dx):
+        """Sets up a function F(alpha1, alpha2) : R^2 -> R^2"""
+
+        evaluation_x = x + dx + alpha1 * grad1(x + dx) + alpha2 * grad2(x + dx)
+        return np.array([constraint1(evaluation_x), constraint2(evaluation_x)])
+    
+    def gradF(alpha1, alpha2, grad1, grad2, x, dx):
+            """Computes the gradient of F(alpha1, alpha2) by Chain rule and matrix multiplication"""
+
+            evaluation_x = x + dx + alpha1 * grad1(x + dx) + alpha2 * grad2(x + dx)
+            # First gradient in the chain rule (2 x 4 matrix)
+            first_gradient = np.array([grad1(evaluation_x), grad2(evaluation_x)])
+            # Second gradient in the chain rule (4 x 2 matrix)
+            second_gradient = np.transpose(np.array([grad1(x + dx), grad2(x + dx)]))
+            return np.dot(first_gradient, second_gradient)
+        
     for k in range(1, MAX_STEPS + 1):
-        x = x - f(x, y) / f_prime_x(x)
-        y = y - f(x, y) / f_prime_y(y)
-        x_array.append((x, y))
-        if np.abs(f(x, y)) < tol:
+        # Evaluate the gradient of F at alpha1, alpha2
+        gradF_evaluated = gradF(alpha1=alphas[0], alpha2=alphas[1], grad1= grad1, grad2=grad2, x=x, dx=dx)
+
+        # Update the alphas
+        delta_alphas = np.linalg.solve(gradF_evaluated, - F(alphas[0], alphas[1], constraint1, grad1, constraint2, grad2, x, dx))
+        alphas = alphas + delta_alphas
+
+        # Evaluate the constraints and check if they are satisfied
+        evaluation_x = x + dx + alphas[0] * grad1(x + dx) + alphas[1] * grad2(x + dx)
+        if np.abs(constraint1(evaluation_x)) < tol and np.abs(constraint2(evaluation_x)) < tol:
             break
         
     if k == MAX_STEPS:
         warnings.warn('Maximum number of steps exceeded')
     
-    return (x, y)   
+    return alphas 
 
 #set up length of the bar
 l = 4 
 
 #set up objective function and constraints
-f0 = lambda x1, y1, x2, y2: (x1 - x2)**2 + (y1 - y2)**2
-f1 = lambda x, y: x**2 + y**2 - 1
-f2 = lambda x, y: (x - l)**2 + y**2 - 1
+# Improved f0 formula
+f0 = lambda x: (x[0] - x[2])**2 + (x[1] - x[3])**2
+# Improved f1 formula
+f1 = lambda x: x[0]**2 + x[1]**2 - 1
+# Improved f2 formula
+f2 = lambda x: (x[2] - l)**2 + x[3]**2 - 1
 
 # calculate the gradient of the objective function and constraints
-f0_prime = lambda x1, y1, x2, y2: np.array([2*(x1 - x2), 2*(y1 - y2), -2*(x1 - x2), -2*(y1 - y2)])
-f1_x = lambda x: 2*x
-f1_y = lambda y: 2*y
-f2_x = lambda x: 2*(x - l)
-f2_y = lambda y: 2*y
+#Improved gradients
+f0_grad = lambda x: np.array([2*(x[0] - x[2]), 2*(x[1] - x[3]), -2*(x[0] - x[2]), -2*(x[1] - x[3])])
+f1_grad = lambda x: np.array([2*x[0], 2*x[1], 0, 0])
+f2_grad = lambda x: np.array([0, 0, 2*(x[2] - l), 2*x[3]])
 
 
-def gradient_descent(obj, obj_prime, constraint1, constraint1_x, constraint1_y, constraint2, constraint2_x, constraint2_y, x0, step, tol, max_iterations):
-    """ Uses Gradient descent to optimize the objective function combined with Newton's method to satisfy the two constraints
+def gradient_descent(obj, obj_grad, constraint1, grad1, constraint2, grad2, x0, step, tol, max_iterations):
+    """ Uses Gradient descent to optimize the objective function combined with Newton's method 
+        to satisfy the two constraints
+    
     Parameters:
     -----------
     - obj: the objective function to minimize
     - obj_prime: the gradient of the objective function
+    - constraint1, constraint2: the constraints
+    - grad1, grad2: the gradients of the constraints
     - x0: initial guess for the minimum
     - step: step size for updating x
     - tol: tolerance under which we stop the iteration
@@ -76,39 +104,29 @@ def gradient_descent(obj, obj_prime, constraint1, constraint1_x, constraint1_y, 
     x = x0
     i = 0
     x_array = [x0]
-    obj_val = [obj(x[0], x[1], x[2], x[3])] # array containing the objective fct value at after each step
-    min_val = obj_val[0]
 
     while i < max_iterations:
-        # Do Gradient descent step: x_new =(x1, y1, x2, y2)
-        x_new = x - step * obj_prime(x[0], x[1], x[2], x[3])
+        # Do  Gradient Descent step
+        # dx = [x1, y1, x2, y2]
+        dx = - step * obj_grad(x)
 
         # Use Newton to get back to the constraints:
-        x_new[0], x_new[1] = newton(constraint1, constraint1_x, constraint1_y, x_new[0], x_new[1])
-        x_new[2], x_new[3] = newton(constraint2, constraint2_x, constraint2_y, x_new[2], x_new[3])
-        
-        # Append the new objective fct value and compute new minimum objective fct value
-        obj_val.append(obj(x_new[0], x_new[1], x_new[2], x_new[3]))
-        min_val = np.min([min_val, obj_val[-1]]) # minimum value of the objective function over all iterations
+        alphas = newton(constraint1=constraint1, grad1=grad1, constraint2=constraint2, grad2=grad2, x=x, dx=dx)
 
+        # Update x by adding both the GD step and the correction
+        alpha1, alpha2 = alphas[0], alphas[1]
+        x_new = x + dx + alpha1 * grad1(x + dx) + alpha2 * grad2(x + dx)
+        
         delta = np.sum(np.abs(x_new - x))
 
-        # This condition is crucial! Only take the G.D. and Newton step if the objective fct is actually minimized
-        if i >= 3000:
-            if (obj_val[-1] <= 1.02 * min_val):
-                x = x_new
-            else:
-                break
-        else:
-            x = x_new
-        
+        x = x_new
         i += 1
+
         x_array.append(x)
 
         if delta < tol:
             break
 
-    
     x_min = x_array[-1]
     x_array = np.array(x_array)
     return x_min, x_array
@@ -171,7 +189,8 @@ def make_animation(x1, y1, x2, y2, initial_guess):
         axes.scatter(x1[frame], y1[frame], color='r')  # Highlight the current point
         axes.plot(x2[:frame], y2[:frame], color='g')  
         axes.scatter(x2[frame], y2[frame], color='r')  
-        axes.set_title("Distance animation for initial guess ({}, {}), ({}, {})".format(initial_guess[0], initial_guess[1], initial_guess[2], initial_guess[3]))
+        axes.set_title("Distance animation for initial guess ({}, {}), ({}, {})".format(initial_guess[0], initial_guess[1], 
+                                                                                        initial_guess[2], initial_guess[3]))
         axes.set_xlabel('$x$',fontsize=16)
         axes.set_ylabel('$y$',fontsize=16)
         
@@ -190,7 +209,7 @@ def make_animation(x1, y1, x2, y2, initial_guess):
 
     # Create the animation
     anim = animation.FuncAnimation(fig, update, frames=len(x1), repeat=False)
-    anim.save("myanimation.mp4")
+    anim.save("myanimation1.mp4")
     plt.show()
 
 if __name__ == "__main__":
@@ -204,20 +223,20 @@ if __name__ == "__main__":
     saves a the animation of the movement of (x1, y1) and (x2, y2) as a mp4 file
     """
     a, b, c, d = 0.8, 0.6, 3.2, 0.6
-    x_min, x_array = gradient_descent(f0, f0_prime, f1, f1_x, f1_y, f2, f2_x, f2_y, [a, b, c, d], 0.002, 1e-5, 20000)
+    x_min, x_array = gradient_descent(f0, f0_grad, f1, f1_grad, f2, f2_grad, [a, b, c, d], 0.01, 1e-5, 200)
 
-    #a, b, c, d = 0.0, 1.0, 4.0, 1.0
-    #x_min, x_array = gradient_descent(f0, f0_prime, f1, f1_x, f1_y, f2, f2_x, f2_y, [a, b, c, d], 0.002, 1e-5, 20000)
+    #a, b, c, d = 0.1, 0.99, 4.2, 0.98
+    #x_min, x_array = gradient_descent(f0, f0_grad, f1, f1_grad, f2, f2_grad, [a, b, c, d], 0.01, 1e-5, 200)
 
-    #a, b, c, d = -0.99, 0.2, 3.2, 0.6
-    #x_min, x_array = gradient_descent(f0, f0_prime, f1, f1_x, f1_y, f2, f2_x, f2_y, [a, b, c, d], 0.002, 1e-5, 38000)
+    #a, b, c, d = -0.99, 0.1411, 4.99, 0.1411
+    #x_min, x_array = gradient_descent(f0, f0_grad, f1, f1_grad, f2, f2_grad, [a, b, c, d], 0.01, 1e-5, 200)
 
     #a, b, c, d = -0.6, 0.8, 4, -1
-    #x_min, x_array = gradient_descent(f0, f0_prime, f1, f1_x, f1_y, f2, f2_x, f2_y, [a, b, c, d], 0.002, 1e-5, 20000)
+    #x_min, x_array = gradient_descent(f0, f0_grad, f1, f1_grad, f2, f2_grad, [a, b, c, d], 0.01, 1e-5, 200)
 
     x1, y1, x2, y2 = [], [], [], []
     for i in range(len(x_array)):
-            if (i% 100 == 0):
+            if (i% 5 == 0 or i > 0.95 * len(x_array) ):
                 x1.append(x_array[i][0])
                 y1.append(x_array[i][1])
                 x2.append(x_array[i][2])
