@@ -10,5 +10,5 @@ https://github.com/mihnealeonte/Constrained-Optimization/assets/123051696/4b0d7f
 https://github.com/mihnealeonte/Constrained-Optimization/assets/123051696/b534c029-5de7-459d-a247-a5bf0acef1cd
 
 
-https://github.com/mihnealeonte/Constrained-Optimization/assets/123051696/9874d6af-5cca-4479-a958-112c406583a0
+https://github.com/mihnealeonte/Constrained-Optimization/assets/123051696/4b25041b-68e4-42dc-8581-6e57149b5a7d
 
