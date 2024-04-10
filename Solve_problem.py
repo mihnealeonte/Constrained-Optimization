@@ -24,7 +24,7 @@ def newton(constraint1, grad1, constraint2, grad2, x, dx, tol = 1.e-6):
     Warning: 
         if number of iterations exceed MAX_STEPS
     """
-    MAX_STEPS = 150
+    MAX_STEPS = 15
     
     # Initialize alpha1 = 0, alpha2 = 0
     alphas = np.array([0.0, 0.0])
