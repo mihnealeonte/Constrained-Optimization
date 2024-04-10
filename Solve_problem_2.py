@@ -154,7 +154,7 @@ def gradient_descent2(matrix, vector, obj, constraint1, constraint2, x0, step, t
     """
     Parameters:
     -----------
-    - matrix: the matrix with form (H, J^T), (J, 0)
+    - matrix: the matrix with form [(H, J^T), (J, 0)], H - hessian of f, J - jacobian of the constraints
     - vector: the RHS of the linear system -(grad f, constraints)
     - obj: the objective function to minimize
     - constraint1, constraint2: the constraints
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     - a, b, c, d: initial starting conditions (must satisfy the constraints)
      Returns:
     --------
-    saves a the animation of the movement of (x1, y1) and (x2, y2) as a mp4 file
+    Saves the animation of the movement of (x1, y1) and (x2, y2) as an mp4 file
     """
     #a, b, c, d = 0.8, 0.6, 3.2, 0.6
     #x_min, x_array = gradient_descent2(system_matrix, system_vector, f0, f1, f2, [a, b, c, d], 0.002, 2 * 1.e-3, 500)
