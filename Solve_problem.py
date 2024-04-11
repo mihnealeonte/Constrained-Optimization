@@ -62,23 +62,6 @@ def newton(constraint1, grad1, constraint2, grad2, x, dx, tol = 1.e-6):
     
     return alphas 
 
-#set up length of the bar
-l = 4 
-
-#set up objective function and constraints
-# Improved f0 formula
-f0 = lambda x: (x[0] - x[2])**2 + (x[1] - x[3])**2
-# Improved f1 formula
-f1 = lambda x: x[0]**2 + x[1]**2 - 1
-# Improved f2 formula
-f2 = lambda x: (x[2] - l)**2 + x[3]**2 - 1
-
-# calculate the gradient of the objective function and constraints
-#Improved gradients
-f0_grad = lambda x: np.array([2*(x[0] - x[2]), 2*(x[1] - x[3]), -2*(x[0] - x[2]), -2*(x[1] - x[3])])
-f1_grad = lambda x: np.array([2*x[0], 2*x[1], 0, 0])
-f2_grad = lambda x: np.array([0, 0, 2*(x[2] - l), 2*x[3]])
-
 
 def gradient_descent(obj, obj_grad, constraint1, grad1, constraint2, grad2, x0, step, tol, max_iterations):
     """ Uses Gradient descent to optimize the objective function combined with Newton's method 
@@ -222,6 +205,19 @@ if __name__ == "__main__":
     --------
     saves a the animation of the movement of (x1, y1) and (x2, y2) as a mp4 file
     """
+    #set up length of the bar
+    l = 4 
+    
+    # Set up objective function and constraints
+    f0 = lambda x: (x[0] - x[2])**2 + (x[1] - x[3])**2
+    f1 = lambda x: x[0]**2 + x[1]**2 - 1
+    f2 = lambda x: (x[2] - l)**2 + x[3]**2 - 1
+    
+    # Calculate the gradient of the objective function and constraints
+    f0_grad = lambda x: np.array([2*(x[0] - x[2]), 2*(x[1] - x[3]), -2*(x[0] - x[2]), -2*(x[1] - x[3])])
+    f1_grad = lambda x: np.array([2*x[0], 2*x[1], 0, 0])
+    f2_grad = lambda x: np.array([0, 0, 2*(x[2] - l), 2*x[3]])
+    
     a, b, c, d = 0.8, 0.6, 3.2, 0.6
     x_min, x_array = gradient_descent(f0, f0_grad, f1, f1_grad, f2, f2_grad, [a, b, c, d], 0.01, 1e-5, 200)
 
